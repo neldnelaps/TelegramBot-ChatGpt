@@ -2,9 +2,11 @@ import logging
 import time
 from aiogram import Bot, Dispatcher, executor, types
 import openai
+from aiogram.types.message import ContentType
 
-bot_token = ''
-api_key = ''
+bot_token = '****:*******'
+api_key = '**************'
+pay_key = '****:TEST:****'
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -14,8 +16,48 @@ dp = Dispatcher(bot)
 
 openai.api_key = api_key
 
+# prices
+PRICE = types.LabeledPrice(label="Подписка на 1 месяц", amount=500*100)  # в копейках (руб)
+
 # Create a dictionary to store messages for each user
 messages = {}
+
+# buy
+@dp.message_handler(commands=['buy'])
+async def buy(message: types.Message):
+    if pay_key.split(':')[1] == 'TEST':
+        await bot.send_message(message.chat.id, "Тестовый платеж!!!")
+
+    await bot.send_invoice(message.chat.id,
+                           title="Подписка на бота",
+                           description="Активация подписки на бота на 1 месяц",
+                           provider_token=pay_key,
+                           currency="rub",
+                           photo_url="",
+                           photo_width=416,
+                           photo_height=234,
+                           photo_size=416,
+                           is_flexible=False,
+                           prices=[PRICE],
+                           start_parameter="one-month-subscription",
+                           payload="test-invoice-payload")
+# pre checkout  (must be answered in 10 seconds)
+@dp.pre_checkout_query_handler(lambda query: True)
+async def pre_checkout_query(pre_checkout_q: types.PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_q.id, ok=True)
+
+# successful payment
+@dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT)
+async def successful_payment(message: types.Message):
+    print("SUCCESSFUL PAYMENT:")
+    payment_info = message.successful_payment.to_python()
+    for k, v in payment_info.items():
+        print(f"{k} = {v}")
+
+    await bot.send_message(message.chat.id,
+                           f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно!!!")
+                          
+
 
 # Handle the /start command
 @dp.message_handler(commands=['start'])
@@ -28,8 +70,8 @@ async def start_cmd(message: types.Message):
     messages[username] = []
     await message.answer(
         "Hello, I'm bot powered on API GPT-3.5-turbo (ChatGPT).\n These are your options:\n/help - Show this help "
-        "message\n/newtopic - Start a new chat\n/image - Create image on prompt")
-
+        "message\n/newtopic - Start a new chat\n/image - Create image on prompt\n/buy - pay for a 1 month subscription"
+        )
 
 # Handle the /newtopic command
 @dp.message_handler(commands=['newtopic'])
@@ -69,7 +111,7 @@ async def image_cmd(message: types.Message):
 # Handle the /help command
 @dp.message_handler(commands=['help'])
 async def help_cmd(message: types.Message):
-    help_text = "/help - Show this help message\n/newtopic - Start a new chat\n/image - Create image on prompt"
+    help_text = "/help - Show this help message\n/newtopic - Start a new chat\n/image - Create image on prompt\n/buy - pay for a 1 month subscription"
     await message.answer(help_text)
 
 # Handle all other messages
