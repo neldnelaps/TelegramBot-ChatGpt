@@ -138,7 +138,6 @@ async def echo_msg(message: types.Message):
         completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages[username],
-            max_tokens=3000,
             temperature=0.7,
             frequency_penalty=0.1,
             presence_penalty=0.1,
